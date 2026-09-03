@@ -27,6 +27,19 @@ python app.py
 Without `GEMINI_API_KEY` everything still runs; discrepancies just show
 "triage pending" instead of an AI note. Nothing is faked.
 
+## Deploy (Render)
+
+`render.yaml` is a Render blueprint. In the [Render dashboard](https://dashboard.render.com):
+**New +** → **Blueprint** → pick this repo → set `GEMINI_API_KEY` when prompted → **Apply**.
+
+Runs `gunicorn app:app` on the free web-service tier. Two things to know:
+
+- The free instance sleeps after ~15 min idle (≈40 s cold start).
+- `state.db` is **not** persistent — reconciliation and AI triage re-run fine on
+  every visit, but "mark resolved" history is lost when the instance restarts.
+- `config/rules.yaml` can't be edited on the host; the live-rules workflow is a
+  local-only feature unless a config-edit endpoint is added.
+
 ## What you should see
 
 1. The dashboard opens empty. Click **Re-run reconciliation** — the engine runs

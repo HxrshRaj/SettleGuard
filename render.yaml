@@ -1,0 +1,16 @@
+# Render blueprint. In the Render dashboard: New + -> Blueprint -> pick this repo.
+# You'll be prompted for GEMINI_API_KEY (it is not stored in the repo).
+services:
+  - type: web
+    name: settleguard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python seed.py
+    # One worker keeps the in-memory triage-progress state coherent; threads
+    # let the dashboard poll /api/summary while a triage job runs.
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # prompted in the dashboard, kept secret
+      - key: PYTHON_VERSION
+        value: "3.11.9"
