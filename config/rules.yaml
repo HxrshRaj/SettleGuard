@@ -1,0 +1,20 @@
+# SettleGuard reconciliation rules.
+# This file is read fresh on every /api/reconcile call — edit it and hit
+# "Re-run reconciliation" in the dashboard to see the effect live.
+
+matching:
+  key: txn_id                # column both datasets are joined on
+  amount_tolerance_inr: 1.0  # amount differences <= this are treated as a rounding match
+  late_threshold_hours: 24   # a settlement later than this vs. the platform's expected time is flagged
+
+# Hints passed to the AI triage layer. The LLM makes the final call on severity,
+# but these thresholds tell it where the business draws its lines.
+severity_hints:
+  amount_delta_high_inr: 500
+  amount_delta_medium_inr: 50
+  delay_hours_high: 72
+
+triage:
+  model: gemini-2.5-flash
+  max_output_tokens: 500
+  temperature: 0.2

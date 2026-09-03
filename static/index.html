@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SettleGuard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>SettleGuard</h1>
+      <span class="tag">merchant settlement reconciliation &amp; triage</span>
+    </div>
+    <div class="actions">
+      <button id="btn-reconcile" class="primary">Re-run reconciliation</button>
+      <button id="btn-triage">Run AI triage</button>
+    </div>
+  </header>
+
+  <section id="statusbar" class="statusbar"></section>
+
+  <details id="config-panel">
+    <summary>Reconciliation rules in force <span class="hint">(edit config/rules.yaml, then Re-run)</span></summary>
+    <pre id="config-dump">loading…</pre>
+  </details>
+
+  <section class="summary-cards" id="summary-cards"></section>
+
+  <section class="filters">
+    <div class="filter-group" id="filter-status">
+      <button data-status="open" class="active">Open</button>
+      <button data-status="resolved">Resolved</button>
+      <button data-status="all">All</button>
+    </div>
+    <div class="filter-group" id="filter-type"></div>
+  </section>
+
+  <main>
+    <table id="disc-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Txn / Merchant</th>
+          <th class="num">Platform</th>
+          <th class="num">Bank</th>
+          <th class="num">Delta</th>
+          <th>Severity</th>
+          <th>AI triage note</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="disc-body"></tbody>
+    </table>
+    <p id="empty" class="empty" hidden>No discrepancies match this filter.</p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

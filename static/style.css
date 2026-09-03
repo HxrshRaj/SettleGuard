@@ -1,0 +1,80 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1c2333;
+  background: #f4f6fb;
+}
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; background: #10203b; color: #fff;
+}
+.brand h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
+.brand .tag { font-size: 12px; color: #9db2d6; }
+.actions button, .filters button {
+  font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid #c3ccdd;
+  background: #fff; padding: 8px 14px; color: #1c2333;
+}
+.actions button.primary { background: #2d6cdf; color: #fff; border-color: #2d6cdf; }
+.actions button:disabled { opacity: .55; cursor: progress; }
+
+.statusbar { padding: 10px 28px; font-size: 13px; min-height: 20px; }
+.statusbar.ok { background: #e6f6ec; color: #1c6b3a; }
+.statusbar.err { background: #fde8e8; color: #a12626; }
+.statusbar.info { background: #e8eefb; color: #274690; }
+
+#config-panel { margin: 6px 28px 0; background: #fff; border: 1px solid #e2e7f0; border-radius: 8px; }
+#config-panel summary { cursor: pointer; padding: 10px 14px; font-weight: 600; }
+#config-panel .hint, .hint { font-weight: 400; color: #7a86a1; font-size: 12px; }
+#config-dump { margin: 0; padding: 12px 16px; background: #f7f9fc; border-top: 1px solid #e2e7f0;
+  font: 12px/1.5 ui-monospace, "SF Mono", Consolas, monospace; overflow-x: auto; }
+
+.summary-cards { display: flex; gap: 12px; flex-wrap: wrap; padding: 16px 28px 4px; }
+.card { background: #fff; border: 1px solid #e2e7f0; border-radius: 8px; padding: 10px 16px; min-width: 110px; }
+.card .n { font-size: 22px; font-weight: 700; }
+.card .l { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #7a86a1; }
+
+.filters { display: flex; gap: 20px; padding: 12px 28px; flex-wrap: wrap; align-items: center; }
+.filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-group button { padding: 5px 10px; font-size: 12px; }
+.filter-group button.active { background: #10203b; color: #fff; border-color: #10203b; }
+
+main { padding: 0 28px 60px; }
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e7f0; border-radius: 8px; overflow: hidden; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef1f6; vertical-align: top; }
+th { background: #f7f9fc; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #7a86a1; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.t-AMOUNT_MISMATCH { background: #fef0e6; color: #b5561a; }
+.t-MISSING_IN_BANK { background: #fde8e8; color: #a12626; }
+.t-MISSING_IN_PLATFORM { background: #efe6fb; color: #6b30b5; }
+.t-DUPLICATE_IN_BANK { background: #e6eefe; color: #234fb0; }
+.t-TIMING_MISMATCH { background: #fdf6e0; color: #8a6d12; }
+.sev-high { background: #fde8e8; color: #a12626; }
+.sev-medium { background: #fdf6e0; color: #8a6d12; }
+.sev-low { background: #e6f6ec; color: #1c6b3a; }
+.sev-none { background: #eef1f6; color: #7a86a1; }
+
+.merchant { color: #7a86a1; font-size: 12px; }
+.delta-pos { color: #1c6b3a; }
+.delta-neg { color: #a12626; }
+.detail { color: #55607a; font-size: 12px; margin-top: 3px; }
+
+.triage .rc { font-weight: 500; }
+.triage .na { color: #274690; margin-top: 4px; }
+.triage .na::before { content: "→ "; }
+.triage .pending { color: #a37b00; font-style: italic; }
+.triage .model { color: #9aa4bd; font-size: 11px; margin-top: 3px; }
+
+.status-open { color: #a12626; font-weight: 600; }
+.status-resolved { color: #1c6b3a; font-weight: 600; }
+button.link { background: none; border: none; color: #2d6cdf; cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+
+.resolve-box { margin-top: 8px; }
+.resolve-box textarea { width: 100%; min-height: 56px; font: inherit; padding: 6px 8px; border: 1px solid #c3ccdd; border-radius: 6px; resize: vertical; }
+.resolve-box .row { margin-top: 6px; display: flex; gap: 8px; }
+.resolve-box button.save { background: #1c6b3a; color: #fff; border-color: #1c6b3a; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.res-notes { background: #f2f8f4; border-left: 3px solid #1c6b3a; padding: 6px 10px; margin-top: 6px; font-size: 12px; }
+.empty { text-align: center; color: #7a86a1; padding: 40px; }
