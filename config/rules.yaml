@@ -15,11 +15,11 @@ severity_hints:
   delay_hours_high: 72
 
 triage:
-  # Any Gemini model id works. gemini-2.5-flash is verified end-to-end here.
-  # 'gemini-flash-latest' is a rolling alias (higher throughput, survives model
-  # deprecations) if the free-tier 5 req/min on 2.5-flash feels slow.
-  # If the free tier throttles a batch (HTTP 429), just click "Run AI triage"
-  # again -- it only re-runs the discrepancies still missing a note.
-  model: gemini-2.5-flash
+  # Any Gemini model id works. gemini-flash-lite-latest is a rolling alias to the
+  # current lightweight Flash model -- fast, generous free-tier limits, and no
+  # hidden "thinking" phase. Swap in gemini-2.5-flash or gemini-flash-latest if
+  # you prefer. If the free tier throttles a batch (HTTP 429), just click
+  # "Run AI triage" again -- it only re-runs discrepancies still missing a note.
+  model: gemini-flash-lite-latest
   max_output_tokens: 2048
   temperature: 0.2

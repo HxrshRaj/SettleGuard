@@ -77,8 +77,9 @@ def _post_with_retry(url, body, timeout, *, max_tries=4):
             if e.code in (500, 503) and not final:
                 time.sleep(min(2 * (2 ** attempt), 12))
                 continue
-            if e.code == 400 and "thinkingConfig" in gc and "thinking" in detail.lower():
-                gc.pop("thinkingConfig", None)
+            # Some models (3.x, *-lite-latest) reject thinkingConfig with a
+            # generic 400. Drop it and retry once before giving up.
+            if e.code == 400 and gc.pop("thinkingConfig", None) is not None:
                 continue
             raise TriageUnavailable(last) from e
         except urllib.error.URLError as e:

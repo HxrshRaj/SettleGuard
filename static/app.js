@@ -126,38 +126,79 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// ---- triage progress polling ------------------------------------------- //
+let pollTimer = null;
+
+async function pollTriage() {
+  clearTimeout(pollTimer);
+  let s;
+  try {
+    s = await api("/api/summary");
+  } catch {
+    return;
+  }
+  const job = s.triage_job || {};
+  await loadRows();
+  if (job.running) {
+    setStatus(`AI triage running… ${job.done}/${job.total}`, "info");
+    pollTimer = setTimeout(pollTriage, 2500);
+  } else {
+    const errs = job.errors || [];
+    let msg = `AI triage finished: ${s.triaged}/${s.total} discrepancies have notes.`;
+    if (errs.length) {
+      const rate = errs.some((x) => /HTTP 429|quota/i.test(x.error));
+      msg += rate
+        ? ` ${errs.length} hit the Gemini free-tier limit — click “Run AI triage” again in a minute.`
+        : ` ${errs.length} error(s): ${errs.map((x) => x.error.slice(0, 80)).join("; ")}`;
+    }
+    setStatus(msg, errs.length ? "err" : "ok");
+    $("#btn-triage").disabled = false;
+    $("#btn-reconcile").disabled = false;
+  }
+}
+
 // ---- interactions -------------------------------------------------------- //
 $("#btn-reconcile").addEventListener("click", async (e) => {
   e.target.disabled = true;
+  $("#btn-triage").disabled = true;
   setStatus("Reconciling against config/rules.yaml…", "info");
   try {
     const r = await api("/api/reconcile", { method: "POST" });
     let msg = `Reconciled: ${r.found} discrepancies (${r.new} new, ${r.updated} updated, ${r.deactivated} cleared). `;
-    msg += r.triage_available ? `AI-triaged ${r.triaged}.` : "Triage offline (no GEMINI_API_KEY).";
-    if (r.triage_errors && r.triage_errors.length) msg += ` ${r.triage_errors.length} triage error(s).`;
-    setStatus(msg, r.triage_errors && r.triage_errors.length ? "err" : "ok");
     await loadConfig();
     await loadRows();
+    if (r.triage_available && r.triage_started) {
+      setStatus(msg + `Starting AI triage on ${r.triage_started}…`, "info");
+      pollTriage();
+    } else {
+      setStatus(msg + (r.triage_available ? "Nothing to triage." : "Triage offline (no GEMINI_API_KEY)."), "ok");
+      e.target.disabled = false;
+      $("#btn-triage").disabled = false;
+    }
   } catch (err) {
     setStatus("Reconcile failed: " + err.message, "err");
-  } finally {
     e.target.disabled = false;
+    $("#btn-triage").disabled = false;
   }
 });
 
 $("#btn-triage").addEventListener("click", async (e) => {
   e.target.disabled = true;
-  setStatus("Calling Gemini for pending discrepancies…", "info");
+  $("#btn-reconcile").disabled = true;
+  setStatus("Starting AI triage for pending discrepancies…", "info");
   try {
     const r = await api("/api/triage", { method: "POST" });
-    let msg = `Triaged ${r.triaged}/${r.pending} pending.`;
-    if (r.errors && r.errors.length) msg += ` Errors: ${r.errors.map((x) => x.error).join("; ")}`;
-    setStatus(msg, r.errors && r.errors.length ? "err" : "ok");
-    await loadRows();
+    if (r.already_running || r.pending) {
+      pollTriage();
+    } else {
+      setStatus("Nothing pending — every discrepancy already has a note.", "ok");
+      e.target.disabled = false;
+      $("#btn-reconcile").disabled = false;
+    }
   } catch (err) {
     setStatus("Triage failed: " + err.message, "err");
-  } finally {
     e.target.disabled = false;
+    $("#btn-reconcile").disabled = false;
   }
 });
 
