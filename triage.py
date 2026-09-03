@@ -18,7 +18,9 @@ API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 SYSTEM_STYLE = (
     "You are a senior payments support engineer working a merchant settlement "
     "reconciliation queue. You write terse, concrete findings for the ops team. "
-    "No hedging, no AI disclaimers, no restating the question."
+    "No hedging, no AI disclaimers, no restating the question. "
+    "Write money amounts as plain ASCII, e.g. 'INR 22,111.20' -- never use the "
+    "rupee sign or other non-ASCII symbols."
 )
 
 RESPONSE_SCHEMA = {
@@ -42,6 +44,49 @@ RESPONSE_SCHEMA = {
 
 class TriageUnavailable(RuntimeError):
     """Raised when triage cannot run for real (e.g. no API key)."""
+
+
+def _post_with_retry(url, body, timeout, *, max_tries=4):
+    """POST JSON with bounded resilience against a busy free tier:
+      * 429 WITH a "retry in Ns" hint (per-minute limit) -> wait it out, retry
+      * 429 without a hint (quota exhausted) -> fail fast, no point retrying now
+      * 500/503 -> short exponential backoff, then retry
+      * 400 mentioning thinkingConfig -> drop that field and retry once
+    """
+    import re
+    import time
+
+    payload = json.loads(body.decode("utf-8"))
+    last = None
+    for attempt in range(max_tries):
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")
+            last = f"Gemini API HTTP {e.code}: {detail[:300]}"
+            gc = payload.get("generationConfig", {})
+            final = attempt == max_tries - 1
+            m = re.search(r"retry in ([\d.]+)s", detail)
+            if e.code == 429 and m and not final:
+                time.sleep(min(float(m.group(1)) + 1, 40))
+                continue
+            if e.code in (500, 503) and not final:
+                time.sleep(min(2 * (2 ** attempt), 12))
+                continue
+            if e.code == 400 and "thinkingConfig" in gc and "thinking" in detail.lower():
+                gc.pop("thinkingConfig", None)
+                continue
+            raise TriageUnavailable(last) from e
+        except urllib.error.URLError as e:
+            if attempt < max_tries - 1:
+                time.sleep(2 * (2 ** attempt))
+                continue
+            raise TriageUnavailable(f"Gemini API unreachable: {e.reason}") from e
+    raise TriageUnavailable(last or "Gemini API: exhausted retries")
 
 
 def api_key():
@@ -90,35 +135,38 @@ def generate(d, config, *, model=None, timeout=30):
     if not key:
         raise TriageUnavailable("GEMINI_API_KEY is not set")
 
-    model = model or config.get("triage", {}).get("model", "gemini-2.5-flash")
+    model = model or config.get("triage", {}).get("model", "gemini-flash-latest")
     gen_cfg = {
         "temperature": config.get("triage", {}).get("temperature", 0.2),
-        "maxOutputTokens": config.get("triage", {}).get("max_output_tokens", 500),
+        "maxOutputTokens": config.get("triage", {}).get("max_output_tokens", 2048),
         "responseMimeType": "application/json",
         "responseSchema": RESPONSE_SCHEMA,
+        # Modern Gemini models spend output tokens on a hidden "thinking" phase,
+        # which can truncate short structured replies. This is a fact-shaped
+        # extraction task, so ask for thinking off. Some models reject the field;
+        # _post_with_retry strips it and retries if so.
+        "thinkingConfig": {"thinkingBudget": 0},
     }
     body = json.dumps({
         "contents": [{"role": "user", "parts": [{"text": _prompt(d, config)}]}],
         "generationConfig": gen_cfg,
     }).encode("utf-8")
-
     url = f"{API_ROOT}/{model}:generateContent?key={key}"
-    req = urllib.request.Request(
-        url, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "replace")[:500]
-        raise TriageUnavailable(f"Gemini API HTTP {e.code}: {detail}") from e
-    except urllib.error.URLError as e:
-        raise TriageUnavailable(f"Gemini API unreachable: {e.reason}") from e
+
+    payload = _post_with_retry(url, body, timeout)
 
     try:
-        text = payload["candidates"][0]["content"]["parts"][0]["text"]
-        parsed = json.loads(text)
-    except (KeyError, IndexError, json.JSONDecodeError) as e:
-        raise TriageUnavailable(f"Unexpected Gemini response shape: {e}") from e
+        cand = payload["candidates"][0]
+        text = cand["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        finish = (payload.get("candidates") or [{}])[0].get("finishReason")
+        raise TriageUnavailable(
+            f"Unexpected Gemini response shape: {e} (finishReason={finish})") from e
+
+    parsed = _parse_json(text)
+    if parsed is None:
+        raise TriageUnavailable(
+            f"Could not parse JSON from Gemini reply: {text[:200]!r}")
 
     sev = str(parsed.get("severity", "")).lower().strip()
     if sev not in ("low", "medium", "high"):
@@ -131,7 +179,25 @@ def generate(d, config, *, model=None, timeout=30):
     }
 
 
-def run_batch(discrepancies, config, *, max_workers=5):
+_CTRL = {c: None for c in range(0x20) if c not in (0x09, 0x0a, 0x0d)}
+
+
+def _parse_json(text):
+    """Best-effort parse of a model JSON reply: strip fences + stray control chars."""
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = t.split("```", 2)[1] if t.count("```") >= 2 else t.strip("`")
+        if t.lstrip().startswith("json"):
+            t = t.lstrip()[4:]
+    for candidate in (text, t, t.translate(_CTRL)):
+        try:
+            return json.loads(candidate)
+        except (json.JSONDecodeError, TypeError):
+            continue
+    return None
+
+
+def run_batch(discrepancies, config, *, max_workers=2):
     """Triage many discrepancies concurrently. Returns (ok, [(id, error), ...])."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
     import store

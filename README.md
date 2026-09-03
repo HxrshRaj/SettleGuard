@@ -29,20 +29,24 @@ Without `GEMINI_API_KEY` everything still runs; discrepancies just show
 
 ## What you should see
 
-1. Dashboard loads with **10 discrepancies** already reconciled from the seed data:
+1. The dashboard opens empty. Click **Re-run reconciliation** — the engine runs
+   against the seed data and, if `GEMINI_API_KEY` is set, auto-triages every
+   discrepancy it finds. You get **10 discrepancies**:
    - 2 amount mismatches (a ₹250 shortpayment, a ₹1,200 overpayment)
    - 3 settlements missing from the bank ledger
    - 2 duplicated bank credits
    - 2 late settlements (40h and 90h after expected)
    - 1 bank credit with no matching platform settlement
    - (a ₹0.50 rounding diff and a 20h-late settlement are correctly **not** flagged)
-2. Click **Run AI triage** → each row gets a root cause, a severity (low/medium/high),
-   and a next action, written in a support-engineer voice by Gemini.
+2. Each row shows an AI triage note: root cause, severity (low/medium/high), and a
+   concrete next action, written in a support-engineer voice by Gemini.
+   If the free tier throttles the batch (HTTP 429), click **Run AI triage** again —
+   it only re-runs rows that still lack a note.
 3. Edit `config/rules.yaml` (e.g. raise `amount_tolerance_inr` or
    `late_threshold_hours`), click **Re-run reconciliation** → the affected rows
    disappear or reappear. The YAML is re-read on every run.
 4. Click **resolve…** on a row, enter notes, Save → it moves to Resolved and the
-   notes persist across re-runs.
+   notes (and the AI note) persist across re-runs.
 
 ## Architecture
 
