@@ -54,6 +54,7 @@ def _post_with_retry(url, body, timeout, *, max_tries=4):
       * 400 mentioning thinkingConfig -> drop that field and retry once
     """
     import re
+    import socket
     import time
 
     payload = json.loads(body.decode("utf-8"))
@@ -65,6 +66,12 @@ def _post_with_retry(url, body, timeout, *, max_tries=4):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
+        except (socket.timeout, TimeoutError) as e:
+            last = f"Gemini API timed out after {timeout}s"
+            if attempt < max_tries - 1:
+                time.sleep(2 * (2 ** attempt))
+                continue
+            raise TriageUnavailable(last) from e
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")
             last = f"Gemini API HTTP {e.code}: {detail[:300]}"
@@ -130,7 +137,7 @@ def _prompt(d, config):
     )
 
 
-def generate(d, config, *, model=None, timeout=30):
+def generate(d, config, *, model=None, timeout=60):
     """Return {'root_cause','severity','next_action'} for one discrepancy."""
     key = api_key()
     if not key:
