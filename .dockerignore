@@ -1,0 +1,6 @@
+web/node_modules
+web/dist
+web/.angular
+.git
+state.db*
+__pycache__

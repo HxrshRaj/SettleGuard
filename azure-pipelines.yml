@@ -1,0 +1,45 @@
+# Azure DevOps pipeline (YAML). Mirrors the GitHub Actions workflow: backend tests,
+# Angular unit tests in headless Chrome, production build, then an OCI image build.
+# NOTE: authored to the Azure Pipelines schema but not executed on an Azure DevOps organisation.
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Test
+    jobs:
+      - job: backend
+        steps:
+          - task: UsePythonVersion@0
+            inputs: { versionSpec: "3.12" }
+          - script: pip install -r requirements.txt pytest
+            displayName: Install backend dependencies
+          - script: python -m pytest tests -q
+            displayName: Backend tests
+      - job: web
+        steps:
+          - task: NodeTool@0
+            inputs: { versionSpec: "22.x" }
+          - script: npm ci
+            workingDirectory: web
+            displayName: Install client dependencies
+          - script: npx ng test --watch=false --karma-config=karma.conf.js
+            workingDirectory: web
+            displayName: Angular unit tests (headless Chrome)
+            env: { CHROME_BIN: /usr/bin/google-chrome }
+          - script: npx ng build --base-href /ng/
+            workingDirectory: web
+            displayName: Production build
+  - stage: Package
+    dependsOn: Test
+    jobs:
+      - job: image
+        steps:
+          - script: docker build -t settleguard:$(Build.BuildId) .
+            displayName: Build OCI image
