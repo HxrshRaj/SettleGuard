@@ -78,6 +78,22 @@ npx ng build --base-href /ng/      # then run `python app.py` and open http://lo
 **Packaging and CI**
 - `Dockerfile`: multi-stage OCI image (Node build, then Python/gunicorn); `.github/workflows/ci.yml` runs backend tests, Angular tests, the production build, then builds the image and smoke-tests it.
 - `azure-pipelines.yml`: the same stages as an Azure DevOps YAML pipeline. It follows the Azure Pipelines schema but has **not** been run on an Azure DevOps organisation.
+## Compliance screening module (`screening/`)
+
+KYB/KYC-style screening bolted onto the reconciliation app: one request fans out to several compliance "vendors", the answers are normalised into one model, and anything risky becomes a case for a human to decide.
+
+- **Name matching** (`matcher.py`, pure Python): normalisation (accents, punctuation, honorifics, company suffixes), token-set Jaro-Winkler (word order does not matter), Soundex as a phonetic tiebreak, alias lists, and a small score penalty when the country differs. Every hit lists the signals behind its score.
+- **Vendor orchestration** (`orchestrator.py`): vendors run concurrently with per-vendor timeouts, retries with exponential backoff and jitter (permanent errors are not retried), a circuit breaker per vendor (open, half-open, closed), and partial results when a vendor is down (`degraded: true`). Three adapters with *different* response shapes are mapped onto one `Finding` model. Risk is combined with a noisy-OR so independent signals add up without passing 100.
+- **Case management** (`cases.py`, `api.py`): medium-risk results and degraded checks open a case; an analyst clears, escalates or reopens it with required notes; every action is in an append-only audit trail; decisions use a conditional update so two analysts cannot both win; `Idempotency-Key` replays return the stored result without calling vendors again.
+- **Tests:** 30 pytest tests covering matching edge cases, retry/backoff bounds, timeouts, concurrency, the circuit breaker, idempotency, the case state machine and a concurrent-decision race.
+
+```
+POST /api/screen              {"name": "...", "country": "AE", "type": "individual", "id_number": "..."}
+GET  /api/cases?status=open   GET /api/cases/<id>   POST /api/cases/<id>/decision
+GET  /api/screening/health    (circuit-breaker state per vendor)
+```
+
+**Limits, stated plainly:** the three vendors are local simulations (no network calls), and the watchlist (`watchlist.json`) is **synthetic**: invented names, not real sanctions entries. Matching quality has not been measured against real lists or real vendor APIs. There is no UI for this module yet, only the JSON API.
 
 ## Running Locally
 
