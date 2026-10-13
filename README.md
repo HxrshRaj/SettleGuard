@@ -59,6 +59,26 @@ Reconciliation tolerances change — a business might decide a ₹1 rounding dif
 **Why separate the AI triage layer from the detection logic?**
 Discrepancy *detection* is deterministic — a SQL join either finds a mismatch or it doesn't. But *explaining* a discrepancy (why did this likely happen, how severe is it, what should be done) benefits from a more flexible, language-based layer. Keeping these separate means the deterministic detection logic stays simple, testable, and trustworthy, while the AI layer adds interpretive value on top without being relied on for the actual pass/fail decision.
 
+## Angular + NgRx dashboard (`web/`)
+
+A second front end built with **Angular 20** (standalone components, signals, `OnPush`) and **NgRx** (store, effects, selectors) on top of the same Flask JSON API. It is served by Flask at `/ng/` once built; the original dashboard at `/` is unchanged.
+
+- **State:** one NgRx feature slice (`web/src/app/state/`): typed actions via `createActionGroup`, a `createFeature` reducer, memoised selectors (status/type filters, open exposure, triage progress).
+- **RxJS in effects:** `exhaustMap` so a double-click cannot start two reconciliations; `concatMap` to keep resolve/reopen ordered; `forkJoin` for the combined load; a `timer` + `switchMap` + `takeWhile` loop that polls `/api/summary` while the AI triage job runs and stops when it finishes.
+- **Optimistic updates:** resolve/reopen change the row immediately and roll back (with an error banner) if the API call fails.
+- **Forms:** reactive form with validation (notes are required, matching the API rule).
+- **Tests:** 21 Jasmine/Karma tests in headless Chrome: reducer and selectors, effects (including the polling loop under `fakeAsync` and the `exhaustMap` behaviour), and component tests that run store + effects + `HttpTestingController` together. The Flask side has 4 pytest tests (`tests/`).
+
+```bash
+cd web && npm ci
+CHROME_BIN=/path/to/chrome npx ng test --watch=false --karma-config=karma.conf.js
+npx ng build --base-href /ng/      # then run `python app.py` and open http://localhost:5000/ng/
+```
+
+**Packaging and CI**
+- `Dockerfile`: multi-stage OCI image (Node build, then Python/gunicorn); `.github/workflows/ci.yml` runs backend tests, Angular tests, the production build, then builds the image and smoke-tests it.
+- `azure-pipelines.yml`: the same stages as an Azure DevOps YAML pipeline. It follows the Azure Pipelines schema but has **not** been run on an Azure DevOps organisation.
+
 ## Running Locally
 
 ```bash
