@@ -1,0 +1,13 @@
+{
+  "_note": "SYNTHETIC demonstration data. These are invented names, not real sanctions entries. A real deployment loads official lists (OFAC SDN, UN, EU) through a vendor or direct feed.",
+  "entries": [
+    {"id": "SYN-0001", "list": "SYNTHETIC-SANCTIONS", "type": "individual", "name": "Viktor Aleksandrovich Morozov", "aliases": ["Victor Morozoff", "V. A. Morozov"], "country": "RU"},
+    {"id": "SYN-0002", "list": "SYNTHETIC-SANCTIONS", "type": "individual", "name": "Mohammed Al-Rashidi", "aliases": ["Muhammad Alrashidi", "Mohamad Rashidi"], "country": "AE"},
+    {"id": "SYN-0003", "list": "SYNTHETIC-SANCTIONS", "type": "entity", "name": "Northgate Trading Company Limited", "aliases": ["Northgate Trading Co", "Nortgate Trading"], "country": "PA"},
+    {"id": "SYN-0004", "list": "SYNTHETIC-PEP", "type": "individual", "name": "Ananya Krishnamurthy Iyer", "aliases": ["A. K. Iyer"], "country": "IN"},
+    {"id": "SYN-0005", "list": "SYNTHETIC-SANCTIONS", "type": "entity", "name": "Blue Meridian Shipping Pvt Ltd", "aliases": ["Blue Meridian Shiping"], "country": "SG"},
+    {"id": "SYN-0006", "list": "SYNTHETIC-ADVERSE-MEDIA", "type": "individual", "name": "Carlos Eduardo Fuentes Ibarra", "aliases": ["Carlos E. Fuentes"], "country": "MX"},
+    {"id": "SYN-0007", "list": "SYNTHETIC-SANCTIONS", "type": "individual", "name": "Li Wei Zhang", "aliases": ["Zhang Li Wei", "Wei Zhang Li"], "country": "CN"},
+    {"id": "SYN-0008", "list": "SYNTHETIC-PEP", "type": "individual", "name": "Olusegun Adebayo Balogun", "aliases": ["Segun Balogun"], "country": "NG"}
+  ]
+}

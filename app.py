@@ -21,11 +21,13 @@ from flask import Flask, jsonify, request, send_from_directory
 import reconcile
 import store
 import triage
+from screening import api as screening_api
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=os.path.join(HERE, "static"), static_url_path="")
 
 store.init()
+app.register_blueprint(screening_api.bp)
 
 # --- background triage job -------------------------------------------------- #
 _triage_lock = threading.Lock()
