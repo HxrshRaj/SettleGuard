@@ -8,6 +8,7 @@
     POST /api/triage           -> start (or restart) AI triage for any rows still pending
     POST /api/resolve/<id>     -> {"notes": "..."} mark one resolved
     POST /api/reopen/<id>      -> undo a resolution
+    GET  /ng/                  -> Angular + NgRx dashboard (built from web/, if present)
 
 Triage runs in a background thread so the HTTP calls stay snappy even when the
 Gemini free tier is slow. The dashboard polls /api/summary to watch notes land.
@@ -69,6 +70,21 @@ def _start_triage():
 @app.get("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
+
+
+NG_DIST = os.path.join(HERE, "web", "dist", "web", "browser")
+
+
+@app.get("/ng/")
+@app.get("/ng/<path:filename>")
+def angular_app(filename="index.html"):
+    """Serve the Angular build. Unknown paths fall back to index.html (client-side app)."""
+    if not os.path.isdir(NG_DIST):
+        return jsonify({"error": "Angular build not found; run `npm ci && npm run build` in web/"}), 404
+    target = os.path.join(NG_DIST, filename)
+    if not os.path.isfile(target):
+        filename = "index.html"
+    return send_from_directory(NG_DIST, filename)
 
 
 @app.get("/api/config")

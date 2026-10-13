@@ -1,0 +1,36 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt pytest
+      - run: python -m pytest tests -q
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - run: npx ng test --watch=false --karma-config=karma.conf.js
+        env: { CHROME_BIN: /usr/bin/google-chrome }
+      - run: npx ng build --base-href /ng/
+  image:
+    runs-on: ubuntu-latest
+    needs: [backend, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t settleguard:ci .
+      - name: smoke test the container
+        run: |
+          docker run -d --name sg -p 8000:8000 settleguard:ci
+          for i in $(seq 1 20); do curl -sf localhost:8000/api/summary && break; sleep 1; done
+          curl -sf -XPOST localhost:8000/api/reconcile | grep '"found":10'
+          curl -sf localhost:8000/ng/ | grep -q app-root
