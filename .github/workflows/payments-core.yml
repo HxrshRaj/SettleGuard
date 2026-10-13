@@ -1,0 +1,48 @@
+name: payments-core
+on:
+  push: { branches: [main], paths: ["payments-core/**", ".github/workflows/payments-core.yml"] }
+  pull_request: { paths: ["payments-core/**", ".github/workflows/payments-core.yml"] }
+jobs:
+  go-ledger:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: payments-core/ledger } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.24" }
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+  ruby-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.24" }
+      - uses: ruby/setup-ruby@v1
+        with: { ruby-version: "3.3" }
+      - run: cd payments-core/ledger && go build -o /tmp/ledgerd ./cmd/ledgerd
+      - run: cd payments-core/ruby-sdk && ruby -Ilib -Itest -e 'Dir["test/test_*.rb"].each { |f| require "./#{f}" }'
+        env: { LEDGERD_BIN: /tmp/ledgerd }
+  scala-settlement-and-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.24" }
+      - uses: ruby/setup-ruby@v1
+        with: { ruby-version: "3.3" }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - name: Install Scala 3 compiler
+        run: |
+          curl -fsSL https://github.com/scala/scala3/releases/download/3.3.4/scala3-3.3.4.tar.gz | tar xz -C "$RUNNER_TEMP"
+          echo "SCALA_HOME=$RUNNER_TEMP/scala3-3.3.4" >> "$GITHUB_ENV"
+      - name: Scala unit + property tests
+        run: |
+          mkdir -p /tmp/out
+          "$SCALA_HOME/bin/scalac" -d /tmp/out payments-core/settlement/src/*.scala payments-core/settlement/test/*.scala
+          L="$SCALA_HOME/lib"
+          java -cp "$L/scala-library-2.13.14.jar:$L/scala3-library_3-3.3.4.jar:/tmp/out" settlement.Tests
+      - name: Cross-language e2e (Ruby -> Go -> Scala)
+        run: payments-core/e2e.sh
