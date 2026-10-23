@@ -95,6 +95,17 @@ GET  /api/screening/health    (circuit-breaker state per vendor)
 
 **Limits, stated plainly:** the three vendors are local simulations (no network calls), and the watchlist (`watchlist.json`) is **synthetic**: invented names, not real sanctions entries. Matching quality has not been measured against real lists or real vendor APIs. There is no UI for this module yet, only the JSON API.
 
+## India-stack primitives (`indiastack/`)
+
+Logic for the flows Indian lenders and payment apps rely on, exposed as JSON endpoints under `/api/india/` (see `indiastack/api.py` for the list):
+
+- **Identifiers:** Aadhaar (12 digits, cannot start with 0 or 1, **Verhoeff checksum**; always returned masked, never stored), PAN (format plus holder-type character), IFSC and UPI VPA validation.
+- **UPI:** `upi://pay` intent links that round-trip through URL encoding, and a collect-request state machine (`PENDING` -> `SUCCESS`/`FAILED`/`EXPIRED`) with per-transaction cap, `Idempotency-Key` replay and a 10-minute expiry.
+- **eNACH:** mandate lifecycle (`INITIATED` -> `ACTIVE` <-> `PAUSED` -> `CANCELLED`/`EXPIRED`) and debit presentation that enforces an ACTIVE mandate, the amount cap, the **24-hour pre-debit notice** and idempotent `debit_ref`.
+- **Statement analysis:** CSV bank statement to average credits, month-end balance, salary detection, recurring obligations, obligation-to-income ratio and NACH-return/bounce count.
+
+**What this is not:** a sandbox. Nothing connects to UIDAI, NPCI, a PSP or a statement-analysis vendor, and the "approve" step is a deterministic simulator (the paise digits pick the outcome so each path can be tested). State is in memory and resets on restart. The validation rules and state machines are real and covered by 30 tests (`tests/test_indiastack.py`), including a 500-payload Verhoeff round trip.
+
 ## Running Locally
 
 ```bash

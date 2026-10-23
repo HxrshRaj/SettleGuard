@@ -23,12 +23,14 @@ import reconcile
 import store
 import triage
 from screening import api as screening_api
+from indiastack import api as india_api
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=os.path.join(HERE, "static"), static_url_path="")
 
 store.init()
 app.register_blueprint(screening_api.bp)
+app.register_blueprint(india_api.bp)
 
 # --- background triage job -------------------------------------------------- #
 _triage_lock = threading.Lock()
