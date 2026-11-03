@@ -106,6 +106,20 @@ Logic for the flows Indian lenders and payment apps rely on, exposed as JSON end
 
 **What this is not:** a sandbox. Nothing connects to UIDAI, NPCI, a PSP or a statement-analysis vendor, and the "approve" step is a deterministic simulator (the paise digits pick the outcome so each path can be tested). State is in memory and resets on restart. The validation rules and state machines are real and covered by 30 tests (`tests/test_indiastack.py`), including a 500-payload Verhoeff round trip.
 
+## Webhook receiver and integration kit (`webhooks/`)
+
+A payment-gateway webhook receiver built the way a merchant integration should be, with the tooling to test and debug it.
+
+- **Signature check on the raw body** (HMAC-SHA256, constant-time compare), using the scheme Razorpay documents: `X-Razorpay-Signature` and `X-Razorpay-Event-Id` headers.
+- **Idempotent processing:** the event id is the key; a redelivered event returns `200 duplicate` and is not applied twice, even under concurrent deliveries (one writer, covered by a test).
+- **Out-of-order safety:** payment state only moves forward, so a late `payment.authorized` cannot undo a `captured`; a refund that arrives before its payment fails with `500` so the gateway retries.
+- **Delivery log and replay:** every event is stored with its raw body, outcome and attempt count; failed events can be replayed. Read and replay endpoints can be locked with `WEBHOOK_ADMIN_TOKEN`.
+- **Clear response contract:** `200` / `400` / `401` / `413` / `500` / `503`, each documented with what the gateway will do next.
+- **Tooling:** `scripts/send_webhook.py` (signed test deliveries, duplicate and tamper modes, prints the equivalent cURL), a Postman collection (`docs/postman/`), an [integration guide](docs/INTEGRATION_GUIDE.md) and a [troubleshooting playbook](docs/TROUBLESHOOTING.md) with a symptom, cause and fix table.
+- **Tests:** 24 pytest tests (`tests/test_webhooks.py`): signature round trip against an OpenSSL-computed value, wrong secret, tampered body, missing headers, duplicates, concurrent duplicates, stale events, amount mismatch, partial and full refunds, failure then replay, admin token. The helper script and the cURL/OpenSSL recipe were run against a local server; the Postman collection was checked as valid JSON but **not run in Postman**.
+
+**What this is not:** it is not connected to a Razorpay account or any live gateway, state is SQLite, and there is one shared secret with no rate limiting. Event shapes are simplified from the documented format; check the gateway's current docs before real use. Set `WEBHOOK_SECRET` (and `WEBHOOK_ADMIN_TOKEN`) in the host environment; the public demo does not have webhooks enabled until they are set.
+
 ## Running Locally
 
 ```bash

@@ -1,0 +1,659 @@
+{
+  "info": {
+    "name": "SettleGuard webhooks and UPI",
+    "description": "Signed webhook deliveries, failure cases and debugging calls. Set baseUrl, webhook_secret (same as the server's WEBHOOK_SECRET) and admin_token (only if WEBHOOK_ADMIN_TOKEN is set). Run the folders in order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Webhook receiver",
+      "item": [
+        {
+          "name": "Payment authorized (200, processed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Event-Id",
+                "value": "pm_evt_1"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entity\":\"event\",\"event\":\"payment.authorized\",\"created_at\":1,\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_pm_1\",\"order_id\":\"order_pm_1\",\"amount\":50000,\"currency\":\"INR\",\"method\":\"upi\"}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body with the webhook secret (HMAC-SHA256, hex).",
+                  "const body = pm.request.body.raw;",
+                  "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('webhook_secret')).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({key: 'X-Razorpay-Signature', value: sig});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('processed', () => pm.expect(pm.response.json().status).to.eql('processed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment captured (200, processed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Event-Id",
+                "value": "pm_evt_2"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entity\":\"event\",\"event\":\"payment.captured\",\"created_at\":2,\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_pm_1\",\"order_id\":\"order_pm_1\",\"amount\":50000,\"currency\":\"INR\",\"method\":\"upi\"}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body with the webhook secret (HMAC-SHA256, hex).",
+                  "const body = pm.request.body.raw;",
+                  "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('webhook_secret')).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({key: 'X-Razorpay-Signature', value: sig});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Same event again (200, duplicate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Event-Id",
+                "value": "pm_evt_2"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "Gateways redeliver. The same event id must not be applied twice.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entity\":\"event\",\"event\":\"payment.captured\",\"created_at\":2,\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_pm_1\",\"order_id\":\"order_pm_1\",\"amount\":50000,\"currency\":\"INR\",\"method\":\"upi\"}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body with the webhook secret (HMAC-SHA256, hex).",
+                  "const body = pm.request.body.raw;",
+                  "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('webhook_secret')).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({key: 'X-Razorpay-Signature', value: sig});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('duplicate', () => pm.expect(pm.response.json().duplicate).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Late authorized after captured (200, stale)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Event-Id",
+                "value": "pm_evt_3"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entity\":\"event\",\"event\":\"payment.authorized\",\"created_at\":1,\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_pm_1\",\"order_id\":\"order_pm_1\",\"amount\":50000,\"currency\":\"INR\",\"method\":\"upi\"}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body with the webhook secret (HMAC-SHA256, hex).",
+                  "const body = pm.request.body.raw;",
+                  "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('webhook_secret')).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({key: 'X-Razorpay-Signature', value: sig});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('stale ignored', () => pm.expect(pm.response.json().reason).to.include('stale'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong signature (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Event-Id",
+                "value": "pm_evt_4"
+              },
+              {
+                "key": "X-Razorpay-Signature",
+                "value": "deadbeef"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entity\":\"event\",\"event\":\"payment.captured\",\"created_at\":5,\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_pm_1\",\"order_id\":\"order_pm_1\",\"amount\":50000,\"currency\":\"INR\",\"method\":\"upi\"}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing event id (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entity\":\"event\",\"event\":\"payment.captured\",\"created_at\":6,\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_pm_1\",\"order_id\":\"order_pm_1\",\"amount\":50000,\"currency\":\"INR\",\"method\":\"upi\"}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body with the webhook secret (HMAC-SHA256, hex).",
+                  "const body = pm.request.body.raw;",
+                  "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('webhook_secret')).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({key: 'X-Razorpay-Signature', value: sig});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refund before payment (500, retry)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Event-Id",
+                "value": "pm_evt_5"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"entity\":\"event\",\"event\":\"refund.processed\",\"created_at\":9,\"payload\":{\"refund\":{\"entity\":{\"id\":\"rfnd_pm_1\",\"payment_id\":\"pay_pm_unknown\",\"amount\":1000}}}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sign the exact raw body with the webhook secret (HMAC-SHA256, hex).",
+                  "const body = pm.request.body.raw;",
+                  "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('webhook_secret')).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({key: 'X-Razorpay-Signature', value: sig});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('500 so the gateway retries', () => pm.response.to.have.status(500));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Debugging",
+      "item": [
+        {
+          "name": "Delivery log, failed only",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Admin-Token",
+                "value": "{{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/events?status=failed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "failed"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "One delivery with raw body",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Admin-Token",
+                "value": "{{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/events/pm_evt_5",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "events",
+                "pm_evt_5"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Payment state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Admin-Token",
+                "value": "{{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/payments/pay_pm_1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "payments",
+                "pay_pm_1"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Replay a failed event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Admin-Token",
+                "value": "{{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/events/pm_evt_5/replay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "events",
+                "pm_evt_5",
+                "replay"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. UPI and validation",
+      "item": [
+        {
+          "name": "Validate a VPA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/india/validate/vpa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "india",
+                "validate",
+                "vpa"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"value\":\"merchant@okbank\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create a UPI collect request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/india/upi/collect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "india",
+                "upi",
+                "collect"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"payer\":\"customer@okbank\",\"payee\":\"merchant@okbank\",\"amount\":\"499.00\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Build a UPI intent link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/india/upi/intent",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "india",
+                "upi",
+                "intent"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"vpa\":\"merchant@okbank\",\"name\":\"Demo Store\",\"amount\":\"250.00\",\"txn_ref\":\"ORD1001\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "webhook_secret",
+      "value": "whsec_demo"
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    }
+  ]
+}
