@@ -12,5 +12,9 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false          # prompted in the dashboard, kept secret
+      - key: WEBHOOK_SECRET
+        sync: false          # same value you configure for the webhook in the gateway dashboard
+      - key: WEBHOOK_ADMIN_TOKEN
+        sync: false          # protects the delivery log and replay endpoints
       - key: PYTHON_VERSION
         value: "3.11.9"

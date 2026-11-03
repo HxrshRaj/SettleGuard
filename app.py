@@ -24,6 +24,7 @@ import store
 import triage
 from screening import api as screening_api
 from indiastack import api as india_api
+from webhooks import api as webhooks_api
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=os.path.join(HERE, "static"), static_url_path="")
@@ -31,6 +32,7 @@ app = Flask(__name__, static_folder=os.path.join(HERE, "static"), static_url_pat
 store.init()
 app.register_blueprint(screening_api.bp)
 app.register_blueprint(india_api.bp)
+app.register_blueprint(webhooks_api.bp)
 
 # --- background triage job -------------------------------------------------- #
 _triage_lock = threading.Lock()
